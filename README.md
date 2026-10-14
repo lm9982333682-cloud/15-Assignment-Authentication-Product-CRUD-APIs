@@ -35,7 +35,7 @@ A full-stack commerce management project built with React and Vite on the client
 ## Repository layout
 
 ```text
-prectice/
+ApexCommerce/
 ├── README.md
 ├── client/
 │   ├── README.md
