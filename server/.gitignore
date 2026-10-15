@@ -1,0 +1,5 @@
+.env
+
+src/srcipts
+src/app.js
+src/controllers/authController.js

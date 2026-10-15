@@ -8,11 +8,11 @@ import jwt from 'jsonwebtoken'
 
 const cookieOption = {
     httpOnly: true,
-    secure: config.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
-}
+};
 
 export const register = async (req, res) => {
     try {
@@ -163,41 +163,36 @@ export const refreshAccessToken = async (req, res) => {
                 success: false,
                 message: "Refresh token is required",
             });
-        };
-
-
+        }
 
         let decoded;
 
         try {
-
             decoded = jwt.verify(refreshToken, config.REFRESH_TOKEN_SECRET);
-
-
-        } catch {
-            console.log(decoded)
+        } catch (error) {
+            res.clearCookie("refreshToken", cookieOption);
             return res.status(401).json({
                 success: false,
                 message: "Invalid or expired refresh token",
             });
-        };
+        }
 
+        const user = await User.findById(decoded.userId).select("+refreshToken");
 
+        if (!user) {
+            res.clearCookie("refreshToken", cookieOption);
 
-        const user = await User.findById(decoded.userId)
-            .select("+refreshToken");
-
-        if (!user || user.refreshToken !== refreshToken) {
-
-            await User.findByIdAndUpdate(user._id, { refreshToken: null });
-
-
-            res.clearCookie("refreshToken", {
-                httpOnly: true,
-                secure: config.NODE_ENV === "production",
-                sameSite: "lax",
-                path: "/",
+            return res.status(401).json({
+                success: false,
+                message: "User not found",
             });
+        }
+
+        if (user.refreshToken !== refreshToken) {
+            await User.findByIdAndUpdate(user._id, {
+                refreshToken: null
+            });
+            res.clearCookie("refreshToken", cookieOption);
 
             return res.status(401).json({
                 success: false,
@@ -208,8 +203,9 @@ export const refreshAccessToken = async (req, res) => {
         const newAccessToken = generateAccessToken(user);
         const newRefreshToken = generateRefreshToken(user);
 
-        await User.findByIdAndUpdate(user._id, { refreshToken: newRefreshToken });
-
+        await User.findByIdAndUpdate(user._id, {
+            refreshToken: newRefreshToken,
+        });
 
         res.cookie("refreshToken", newRefreshToken, cookieOption);
 
@@ -220,10 +216,7 @@ export const refreshAccessToken = async (req, res) => {
         });
 
 
-
-
     } catch (error) {
-
         console.error("Refresh token error:", error.message);
 
         return res.status(500).json({
@@ -232,7 +225,6 @@ export const refreshAccessToken = async (req, res) => {
         });
     }
 };
-
 
 export const logout = async (req, res) => {
     try {
